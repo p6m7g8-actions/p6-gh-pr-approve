@@ -4,9 +4,9 @@ author: "Philip M. Gollucci"
 
 inputs:
   owner:
-    description: "The owner of the repository."
+    description: "User login whose PRs are auto-approved. Must be a user login, not an org name."
     required: true
-    default: "p6m7g8"
+    default: "pgollucci"
   bot:
     description: "The bot account to use for approving the PR."
     required: true
@@ -20,9 +20,11 @@ runs:
   steps:
     - name: Auto Approve a PR
       uses: hmarr/auto-approve-action@v4.0.0
-      if: |
-        !github.event.pull_request.draft &&
-        !contains(github.event.pull_request.labels.*.name, 'do-not-merge') &&
-        (contains(github.event.pull_request.labels.*.name, 'auto-approve') || github.event.pull_request.user.login == ${{ inputs.owner }} || github.event.pull_request.user.login == ${{ inputs.bot }})
+      if: >-
+        ${{ !github.event.pull_request.draft
+        && !contains(github.event.pull_request.labels.*.name, 'do-not-merge')
+        && (contains(github.event.pull_request.labels.*.name, 'auto-approve')
+        || github.event.pull_request.user.login == inputs.owner
+        || github.event.pull_request.user.login == inputs.bot) }}
       with:
         github-token: ${{ inputs.bot_token }}

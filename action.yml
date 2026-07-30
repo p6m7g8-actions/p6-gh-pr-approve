@@ -18,13 +18,33 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # GitHub refuses to let an identity approve its own pull request. Every PR
+    # opened BY the bot -- distribution PRs and dependency-upgrade PRs -- is
+    # authored by the same account that holds bot_token, so approving those with
+    # bot_token always failed:
+    #   Unprocessable Entity: "Review Can not approve your own pull request"
+    # That is why distribution PRs never merged; the batch from 2026-03-29 sat
+    # open for four months. github.token runs as github-actions[bot], which is
+    # never the author in this fleet, so it can approve what the bot cannot.
+    # Author == bot is sufficient on its own, preserving the previous semantics.
+    - name: Auto Approve a bot-authored PR
+      uses: hmarr/auto-approve-action@v4.0.0
+      if: >-
+        ${{ !github.event.pull_request.draft
+        && !contains(github.event.pull_request.labels.*.name, 'do-not-merge')
+        && github.event.pull_request.user.login == inputs.bot }}
+      with:
+        github-token: ${{ github.token }}
+
+    # Everyone else keeps the PAT, so the approval carries the bot identity that
+    # rulesets and reviewers expect.
     - name: Auto Approve a PR
       uses: hmarr/auto-approve-action@v4.0.0
       if: >-
         ${{ !github.event.pull_request.draft
         && !contains(github.event.pull_request.labels.*.name, 'do-not-merge')
+        && github.event.pull_request.user.login != inputs.bot
         && (contains(github.event.pull_request.labels.*.name, 'auto-approve')
-        || github.event.pull_request.user.login == inputs.owner
-        || github.event.pull_request.user.login == inputs.bot) }}
+        || github.event.pull_request.user.login == inputs.owner) }}
       with:
         github-token: ${{ inputs.bot_token }}
